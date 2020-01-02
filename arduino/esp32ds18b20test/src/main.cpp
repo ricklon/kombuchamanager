@@ -3,8 +3,11 @@
 #include <DallasTemperature.h>
 
 // Data wire is plugged into port 2 on the Arduino
-#define ONE_WIRE_BUS 14
+#define ONE_WIRE_BUS 27
 #define TEMPERATURE_PRECISION 9
+#define MAX_DEVICES 8
+
+int DeviceCount = 0;
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -13,15 +16,7 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 // arrays to hold device addresses
-DeviceAddress devices[];
-
-// Assign address manually. The addresses below will beed to be changed
-// to valid device addresses on your bus. Device address can be retrieved
-// by using either oneWire.search(deviceAddress) or individually via
-// sensors.getAddress(deviceAddress, index)
-// DeviceAddress insideThermometer = { 0x28, 0x1D, 0x39, 0x31, 0x2, 0x0, 0x0, 0xF0 };
-// DeviceAddress outsideThermometer   = { 0x28, 0x3F, 0x1C, 0x31, 0x2, 0x0, 0x0, 0x2 };
-
+DeviceAddress DeviceAddresses[MAX_DEVICES];
 
 // function to print a device address
 void printAddress(DeviceAddress deviceAddress)
@@ -75,71 +70,53 @@ void setup(void)
   // locate devices on the bus
   Serial.print("Locating devices...");
   Serial.print("Found ");
-  Serial.print(sensors.getDeviceCount(), DEC);
+  DeviceCount = sensors.getDeviceCount();
+  Serial.print(DeviceCount, DEC);
+  DeviceCount = 4;
   Serial.println(" devices.");
 
   // report parasite power requirements
   Serial.print("Parasite power is: ");
-  if (sensors.isParasitePowerMode()) Serial.println("ON");
+  if (sensors.isParasitePowerMode())
+    Serial.println("ON");
   else Serial.println("OFF");
 
-  // Search for devices on the bus and assign based on an index. Ideally,
-  // you would do this to initially discover addresses on the bus and then
-  // use those addresses and manually assign them (see above) once you know
-  // the devices on your bus (and assuming they don't change).
-  //
-  // method 1: by index
-  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find address for Device 0");
-  if (!sensors.getAddress(outsideThermometer, 1)) Serial.println("Unable to find address for Device 1");
+  // Search for devices on the bus and assign based on an index.
 
-  // method 2: search()
-  // search() looks for the next device. Returns 1 if a new address has been
-  // returned. A zero might mean that the bus is shorted, there are no devices,
-  // or you have already retrieved all of them. It might be a good idea to
-  // check the CRC to make sure you didn't get garbage. The order is
-  // deterministic. You will always get the same devices in the same order
-  //
-  // Must be called before search()
-  //oneWire.reset_search();
-  // assigns the first address found to insideThermometer
-  //if (!oneWire.search(insideThermometer)) Serial.println("Unable to find address for insideThermometer");
-  // assigns the seconds address found to outsideThermometer
-  //if (!oneWire.search(outsideThermometer)) Serial.println("Unable to find address for outsideThermometer");
+  for (int ii = 0; ii < DeviceCount; ii++) {
+    if (!sensors.getAddress(DeviceAddresses[ii], ii)) Serial.println("Unable to find address for Device 0");
+  }
 
   // show the addresses we found on the bus
-  Serial.print("Device 0 Address: ");
-  printAddress(insideThermometer);
-  Serial.println();
+  for (int ii = 0; ii < DeviceCount; ii++)  {
+      Serial.print("Device[" );
+      Serial.print(ii);
+      Serial.print("] Address: ");
+      //Serial.print(ii);
+      printAddress(DeviceAddresses[ii]);
+      Serial.println();
 
-  Serial.print("Device 1 Address: ");
-  printAddress(outsideThermometer);
-  Serial.println();
-
-  // set the resolution to 9 bit per device
-  sensors.setResolution(insideThermometer, TEMPERATURE_PRECISION);
-  sensors.setResolution(outsideThermometer, TEMPERATURE_PRECISION);
-
-  Serial.print("Device 0 Resolution: ");
-  Serial.print(sensors.getResolution(insideThermometer), DEC);
-  Serial.println();
-
-  Serial.print("Device 1 Resolution: ");
-  Serial.print(sensors.getResolution(outsideThermometer), DEC);
-  Serial.println();
+      // set the resolution to 9 bit per device
+      sensors.setResolution(DeviceAddresses[ii], TEMPERATURE_PRECISION);
+  }
+  while(Serial.available() == 0){}
 }
+  /*
+     Main function, calls the temperatures in a loop.
+  */
+  void loop(void)
+  {
+    // call sensors.requestTemperatures() to issue a global temperature
+    // request to all devices on the bus
+    Serial.print("#Devs: ");
+    Serial.print(DeviceCount);
+    Serial.print("Requesting temperatures...");
+    sensors.requestTemperatures();
+    Serial.println("DONE");
 
-/*
-   Main function, calls the temperatures in a loop.
-*/
-void loop(void)
-{
-  // call sensors.requestTemperatures() to issue a global temperature
-  // request to all devices on the bus
-  Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures();
-  Serial.println("DONE");
-
-  // print the device information
-  printData(insideThermometer);
-  printData(outsideThermometer);
-}
+    // print the device information
+    for (int ii = 0; ii < DeviceCount; ii++) {
+      printData(DeviceAddresses[ii]);
+    }
+    delay(333);
+  }
