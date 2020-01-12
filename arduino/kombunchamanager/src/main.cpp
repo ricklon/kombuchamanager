@@ -9,6 +9,7 @@
 #include <U8g2lib.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include "SPIFFS.h"
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -68,11 +69,48 @@ void printData(DeviceAddress deviceAddress)
   Serial.println();
 }
 
+//function to print startup status
+void oledPrint() {
+  int line = 10;
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tr);
+
+  u8g2.setCursor(0, line);
+  u8g2.print("Kombucha Time");
+  u8g2.print(days);
+  u8g2.print(":");
+  u8g2.print(hours);
+  u8g2.print(":");
+  u8g2.print(mins);
+  u8g2.print(":");
+  u8g2.print(secs);
+
+  for (int ii = 0; ii < DeviceCount; ii++) {
+    line  += 10;  
+  u8g2.setCursor(0, line);
+  u8g2.print("Jar ");
+  u8g2.print(ii);
+  u8g2.print(": ");
+  u8g2.print(DallasTemperature::toFahrenheit(temps[ii]));
+
+  }
+
+  u8g2.sendBuffer();
+  delay(333);
+
+}
+
 void setup(void) {
   pinMode(0, INPUT_PULLUP);
 
   Serial.begin(9600);
   u8g2.begin();
+ 
+ if(!SPIFFS.begin(true)){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+
   sensors.begin();
   //DeviceCount = sensors.getDeviceCount();
   DeviceCount = 4;
@@ -106,6 +144,8 @@ void loop(void) {
   days =  (timeNow / (1000 * 60 * 60)) / 24;
 
   sensors.requestTemperatures();
+
+
  // print the device information
     for (int ii = 0; ii < DeviceCount; ii++) {
       printData(DeviceAddresses[ii]);
@@ -113,11 +153,13 @@ void loop(void) {
 
     }
      
+
+  // Display Status
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_ncenB08_tr);
 
   u8g2.setCursor(0, line);
-  u8g2.print("SRestart: ");
+  u8g2.print("uptime: ");
   u8g2.print(days);
   u8g2.print(":");
   u8g2.print(hours);
@@ -135,19 +177,7 @@ void loop(void) {
   u8g2.print(DallasTemperature::toFahrenheit(temps[ii]));
 
   }
-/*
-  u8g2.setCursor(0, 30);
-  u8g2.print("Jar 2: ");
-  u8g2.print(mins);
 
-  u8g2.setCursor(0, 40);
-  u8g2.print("Jar 3: ");
-  u8g2.print(hours);
-
-  u8g2.setCursor( 0, 50);
-  u8g2.print("Jar 4: ");
-  u8g2.print(days);
-*/
   u8g2.sendBuffer();
   delay(333);
 
